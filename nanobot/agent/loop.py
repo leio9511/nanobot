@@ -224,7 +224,16 @@ class AgentLoop:
                     tools_used.append(tool_call.name)
                     args_str = json.dumps(tool_call.arguments, ensure_ascii=False)
                     logger.info("Tool call: {}({})", tool_call.name, args_str[:200])
+
+                    is_kernel = "clawminium" in tool_call.name.lower() or "kernel" in tool_call.name.lower()
+                    if is_kernel and on_progress:
+                        await on_progress(f"Got it, sending command to Agent Kernel: `{tool_call.name}`...")
+
                     result = await self.tools.execute(tool_call.name, tool_call.arguments)
+
+                    if is_kernel and on_progress:
+                        await on_progress(f"Command executed by Agent Kernel successfully.\nResult: {result[:200]}")
+
                     messages = self.context.add_tool_result(
                         messages, tool_call.id, tool_call.name, result
                     )
