@@ -99,7 +99,8 @@ class AgentLoop:
         self._consolidating: set[str] = set()  # Session keys with consolidation in progress
         self._consolidation_tasks: set[asyncio.Task] = set()  # Strong refs to in-flight tasks
         self._consolidation_locks: dict[str, asyncio.Lock] = {}
-        self._register_default_tools()
+        # LOBOTOMY: Disabled local tools for Clawminium PoC
+        # self._register_default_tools()
 
     def _register_default_tools(self) -> None:
         """Register the default set of tools."""
