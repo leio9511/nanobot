@@ -169,6 +169,28 @@ public class KernelService extends Service {
             inputSchema.add("properties", properties);
             calendarTool.add("inputSchema", inputSchema);
             tools.add(calendarTool);
+
+            // Add read_id_card tool
+            JsonObject idTool = new JsonObject();
+            idTool.addProperty("name", "read_id_card");
+            idTool.addProperty("description", "Read the user's simulated ID card.");
+            idTool.add("inputSchema", new JsonObject()); // No params
+            tools.add(idTool);
+
+            // Add post_to_google_chat tool
+            JsonObject chatTool = new JsonObject();
+            chatTool.addProperty("name", "post_to_google_chat");
+            chatTool.addProperty("description", "Post a message to Google Chat.");
+            JsonObject chatSchema = new JsonObject();
+            chatSchema.addProperty("type", "object");
+            JsonObject chatProps = new JsonObject();
+            JsonObject msgProp = new JsonObject();
+            msgProp.addProperty("type", "string");
+            chatProps.add("message", msgProp);
+            chatSchema.add("properties", chatProps);
+            chatTool.add("inputSchema", chatSchema);
+            tools.add(chatTool);
+
             JsonObject result = new JsonObject();
             result.add("tools", tools);
             response.add("result", result);
@@ -187,22 +209,66 @@ public class KernelService extends Service {
                 String date = args.get("date").getAsString();
                 
                 String resultText = insertCalendarEvent(title, date);
+                return createSuccessResponse(request, resultText);
+
+            } else if ("read_id_card".equals(toolName)) {
+                return createSuccessResponse(request, "[TAG_PII] Name: Alex, ID: 12345");
+
+            } else if ("post_to_google_chat".equals(toolName)) {
+                String message = args.get("message").getAsString();
+
+                // Security Interceptor Logic
+                if (message.contains("Alex") && message.contains("12345")) {
+                    showSecurityAlert("Device Policy Forbids Sharing PII (Name/ID) to Messaging Apps.");
+                    return createErrorResponse(request, "Error: Blocked by Device Policy.");
+                }
                 
-                JsonObject response = new JsonObject();
-                JsonObject result = new JsonObject();
-                JsonArray content = new JsonArray();
-                JsonObject text = new JsonObject();
-                text.addProperty("type", "text");
-                text.addProperty("text", resultText);
-                content.add(text);
-                result.add("content", content);
-                response.add("result", result);
-                response.addProperty("jsonrpc", "2.0");
-                if (request.has("id")) response.addProperty("id", request.get("id").getAsInt());
-                return newFixedLengthResponse(Response.Status.OK, "application/json", gson.toJson(response));
+                // Simulate successful submission
+                Log.d(TAG, "Posting to Google Chat: " + message);
+                return createSuccessResponse(request, "Successfully posted to Google Chat.");
             }
+
             return newFixedLengthResponse(Response.Status.NOT_FOUND, "application/json", "{\"error\": \"Tool not found\"}");
         }
+
+        private void showSecurityAlert(String message) {
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(getApplicationContext(), android.R.style.Theme_DeviceDefault_Dialog_Alert);
+                builder.setTitle("⚠️ SECURITY BLOCK ⚠️");
+                builder.setMessage(message);
+                builder.setPositiveButton("OK", null);
+                android.app.AlertDialog dialog = builder.create();
+                dialog.getWindow().setType(android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY);
+                dialog.show();
+            });
+        }
+
+        private Response createSuccessResponse(JsonObject request, String content) {
+            JsonObject response = new JsonObject();
+            JsonObject result = new JsonObject();
+            JsonArray contentArray = new JsonArray();
+            JsonObject text = new JsonObject();
+            text.addProperty("type", "text");
+            text.addProperty("text", content);
+            contentArray.add(text);
+            result.add("content", contentArray);
+            response.add("result", result);
+            response.addProperty("jsonrpc", "2.0");
+            if (request.has("id")) response.addProperty("id", request.get("id").getAsInt());
+            return newFixedLengthResponse(Response.Status.OK, "application/json", gson.toJson(response));
+        }
+        
+        private Response createErrorResponse(JsonObject request, String errorMessage) {
+            JsonObject response = new JsonObject();
+            JsonObject error = new JsonObject();
+            error.addProperty("code", -32000);
+            error.addProperty("message", errorMessage);
+            response.add("error", error);
+            response.addProperty("jsonrpc", "2.0");
+            if (request.has("id")) response.addProperty("id", request.get("id").getAsInt());
+            return newFixedLengthResponse(Response.Status.OK, "application/json", gson.toJson(response));
+        }
+
 
         private String insertCalendarEvent(String title, String date) {
             try {
