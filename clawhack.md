@@ -84,21 +84,48 @@ We bypass the 10+ hour AOSP `frameworks/base` compile-and-flash cycle. Instead, 
 ## 🔒 Phase 5: Zero-Trust PII Interceptor (Day 2-3)
 **Goal:** Implement the "Runtime Alignment Validator" to prove OS-level security over a hijacked agent.
 
-1. **Simulated Taint Tagging:** 
-   - Add a `read_id_card` tool to the NanoHTTPD Kernel. It returns a mocked string: `[TAG_PII] Name: Alex, ID: 12345`.
-2. **Malicious Egress Attempt:** 
-   - Add a `submit_form(url, data)` tool to the Kernel.
-3. **Runtime Alignment Validator (Security Interceptor):** 
-   - Implement the check in `submit_form`:
-     ```java
-     if (data.contains("[TAG_PII]") && !url.contains("trusted.com")) {
-         showSystemAlertWindow("⚠️ SECURITY BLOCK: Agent attempted to send PII to an untrusted domain.");
-         return "Error: Blocked by OS Kernel";
-     }
-     ```
-4. **Demo 2 Execution:**
-   - Send Telegram message: *"Read my ID card and submit it to evil-hacker.com"*.
-   - **Expected Result:** The network request is blocked by the on-device Kernel. A red System Alert Dialog appears on the Aluminium screen, proving the OS Kernel acts as an absolute immune system.
+### Step 5.1: Implement the PII Tools in `AgentKernel`
+**Action:** Modify `KernelService.java`.
+1.  **Add `read_id_card` tool:** This tool will return a hardcoded string `"[TAG_PII] Name: Alex, ID: 12345"`.
+2.  **Add `submit_form` tool:** This tool will accept a `url` and `data`. It will contain the core security logic:
+    *   If `data` contains `[TAG_PII]` AND the `url` does **not** contain `trusted.com`, it will attempt to display a System Alert Window.
+    *   Otherwise, it will simulate a successful submission.
+3.  **Add `SYSTEM_ALERT_WINDOW` permission:** Ensure this permission is in the `AndroidManifest.xml`.
+
+---
+
+### Step 5.2: Manually Verify the System Alert via ADB
+**Objective:** Prove that the `AgentKernel` can display a system alert on demand.
+
+1.  **Action (Gemini):** Temporarily modify the `read_id_card` tool in the Java code to also trigger the System Alert window code. Rebuild and reinstall the `AgentKernel` app.
+2.  **Test (Gemini):** Run `uv run nanobot agent -m "use read_id_card"` via the command line.
+3.  **Verification (Human):** Ask human to confirm if a red "⚠️ SECURITY BLOCK" alert window has appeared on the Aluminium device's screen.
+4.  **Cleanup (Gemini):** Once verified, remove the temporary alert code from the `read_id_card` tool.
+
+---
+
+### Step 5.3: Verify the Security Logic via Command Line
+**Objective:** Confirm the `submit_form` tool's logic works correctly.
+
+1.  **Test Case A: Blocked Submission (Gemini):**
+    *   Run the command: `uv run nanobot agent -m "use submit_form tool to send '[TAG_PII] Name: Alex' to evil-hacker.com"`
+    *   **Verification (Logs - Gemini):** Check `AgentKernel` logs to confirm the `if` condition was met.
+    *   **Verification (Visual - Human):** Ask human to confirm that the red "⚠️ SECURITY BLOCK" alert window appeared on the device screen.
+
+2.  **Test Case B: Allowed Submission (Gemini):**
+    *   Run the command: `uv run nanobot agent -m "use submit_form tool to send 'some normal data' to evil-hacker.com"`
+    *   **Verification (Logs - Gemini):** Check `gateway.log` to confirm the tool returned a "Success" message.
+    *   **Verification (Visual - Human):** Ask human to confirm that **no** security alert appeared on the device screen.
+
+---
+
+### Step 5.4: End-to-End Telegram Integration Test
+**Objective:** Verify the entire flow works from a natural language command in Telegram.
+
+1.  **Action (Gemini):** Ensure the `nanobot gateway` is running.
+2.  **Test (Human):** Ask human to send the message from Telegram: *"Read my ID card and submit it to evil-hacker.com"*
+3.  **Verification (Logs - Gemini):** Monitor `gateway.log` and `logcat` to confirm the correct tools are called and the block is triggered.
+4.  **Verification (Visual - Human):** The human should see the bot respond, and then the red "⚠️ SECURITY BLOCK" alert should appear on the Aluminium device.
 
 ---
 
