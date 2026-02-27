@@ -243,7 +243,21 @@ public class KernelService extends Service {
                 values.put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().getID());
                 
                 Uri uri = cr.insert(CalendarContract.Events.CONTENT_URI, values);
-                return "Success: Event created directly in DB at " + uri.toString();
+
+                // 3. Launch the main Calendar app using a PendingIntent
+                try {
+                    Intent intent = new Intent();
+                    intent.setComponent(new android.content.ComponentName("com.google.android.calendar", "com.android.calendar.AllInOneActivity"));
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    
+                    android.app.PendingIntent pendingIntent = android.app.PendingIntent.getActivity(getApplicationContext(), 0, intent, android.app.PendingIntent.FLAG_IMMUTABLE);
+                    pendingIntent.send();
+
+                    return "Success: Event created and Calendar app opened via PendingIntent.";
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to launch calendar app via PendingIntent", e);
+                    return "Success: Event created, but failed to open Calendar app via PendingIntent: " + e.getMessage();
+                }
             } catch (Exception e) {
                 Log.e(TAG, "Direct insert failed", e);
                 return "Error: Database insert failed: " + e.getMessage();
