@@ -100,7 +100,7 @@ class AgentLoop:
         self._consolidation_tasks: set[asyncio.Task] = set()  # Strong refs to in-flight tasks
         self._consolidation_locks: dict[str, asyncio.Lock] = {}
         # LOBOTOMY: Disabled local tools for Clawminium PoC
-        # self._register_default_tools()
+        self._register_default_tools()
 
     def _register_default_tools(self) -> None:
         """Register the default set of tools."""
@@ -185,7 +185,6 @@ class AgentLoop:
 
         while iteration < self.max_iterations:
             iteration += 1
-
             response = await self.provider.chat(
                 messages=messages,
                 tools=self.tools.get_definitions(),
@@ -193,6 +192,10 @@ class AgentLoop:
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
             )
+
+            if response.finish_reason == "error":
+                final_content = f"LLM not available: {response.content}"
+                break
 
             if response.has_tool_calls:
                 if on_progress:
