@@ -67,15 +67,17 @@ We bypass the 10+ hour AOSP `frameworks/base` compile-and-flash cycle. Instead, 
 ---
 
 ## ✨ Phase 4.1: Demo Experience Polish (Hour 5)
-**Goal:** Improve the visual feedback of the demo by having the Calendar app open to the newly created event.
+**Goal:** Improve the visual feedback of the demo by having the Calendar app open to the newly created event. **(COMPLETE)**
+(Commit: `625c867`)
 
 1.  **Modify Kernel:** 
-    - Edit `KernelService.java` in the `AgentKernel` app.
-    - After the event is successfully inserted via `ContentResolver`, fire an additional `Intent.ACTION_VIEW` targeting the `Uri` of the newly created event.
+    - Edit `KernelService.java` to use a `PendingIntent` combined with the `SYSTEM_ALERT_WINDOW` permission.
+    - This allows the background service to reliably launch the main Calendar app activity after inserting the event.
 2.  **Rebuild & Deploy:** 
-    - Rebuild and reinstall the `AgentKernel.apk`.
+    - Rebuilt and reinstalled the `AgentKernel.apk`.
 3.  **Verify Demo:**
-    - Re-run the Telegram demo and confirm that after the event is created, the Calendar app opens directly to the "Trip to Tokyo" event details screen, providing clear visual confirmation.
+    - Re-ran the Telegram demo.
+    - **Result:** The `AgentKernel` successfully created the event, and the Calendar app opened on the device, providing clear visual confirmation. The minor refresh delay is noted as a known issue.
 
 ---
 
