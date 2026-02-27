@@ -8,6 +8,7 @@ We bypass the 10+ hour AOSP `frameworks/base` compile-and-flash cycle. Instead, 
 
 ## 🚀 Phase 1: The Local "Lobotomy" & Telegram Verification (Hour 1)
 **Goal:** Prove the Python logic and Telegram connectivity on the workstation before introducing Android complexities. **(COMPLETE)**
+(Commit: `b6d2d9d`, `4803795`)
 
 1. **The Lobotomy:** 
    - Edit `nanobot/agent/loop.py`.
@@ -23,6 +24,7 @@ We bypass the 10+ hour AOSP `frameworks/base` compile-and-flash cycle. Instead, 
 
 ## 🧠 Phase 2: Architectural Pivot - Cloud-to-Device Orchestration (Hour 2)
 **Goal:** Run the "Brain" on the CloudTop (Workstation) to avoid Rust/Maturin cross-compilation issues on Android (specifically `pydantic-core`). **(COMPLETE)**
+(Commit: `b435424`, `fe357a7`)
 
 *Why the Pivot?* During the Hackathon, cross-compiling complex Python dependencies like `pydantic-core` (which requires Rust/Maturin) for ARM64 Android within Chaquopy proved to be a significant blocker. By running `nanobot` on the CloudTop and exposing the Android capabilities via an MCP Server on the device, we achieve a stronger architectural story: **Cloud-based reasoning orchestrating a secure, privileged on-device Kernel.**
 
@@ -32,42 +34,48 @@ We bypass the 10+ hour AOSP `frameworks/base` compile-and-flash cycle. Instead, 
 ---
 
 ## 🛡️ Phase 3: Forging the "AgentKernel" App - The Golden Shortcut (Hour 3)
-**Goal:** Build the privileged Java service (User 0) that intercepts intents and exposes MCP tools over a local HTTP server.
+**Goal:** Build the privileged Java service (User 0) that intercepts intents and exposes MCP tools over a local HTTP server. **(COMPLETE)**
+(Commit: `faf02e0`)
 
 1. **Scaffold Project:** 
-   - Generate a standard Gradle Android project named `AgentKernel` via CLI.
+   - Generated a standard Gradle Android project named `AgentKernel` via CLI.
 2. **The God Privilege:** 
-   - In `AndroidManifest.xml`, inject `android:sharedUserId="android.uid.system"`.
+   - In `AndroidManifest.xml`, attempted `android:sharedUserId="android.uid.system"`, but reverted due to lack of platform keys. App runs as a standard user (user 10).
 3. **Platform Keys Generation:** 
-   - Locate `platform.pk8` and `platform.x509.pem` in the AOSP source tree.
-   - Use `openssl` and `keytool` via CLI to convert them into a `platform.jks` keystore.
-   - Configure `signingConfigs` in `build.gradle` to use this keystore.
+   - Skipped due to unavailable AOSP keys. A placeholder `platform.jks` was generated to satisfy build requirements.
 4. **NanoHTTPD Implementation:** 
-   - Add `implementation 'org.nanohttpd:nanohttpd:2.3.2'` to `build.gradle`.
-   - Write `KernelService.java` to start a NanoHTTPD server on `localhost:8080`.
-   - Implement the MCP Handshake and mock the `create_calendar_event` tool mapping to `Intent(Intent.ACTION_INSERT)`.
+   - Added `implementation 'org.nanohttpd:nanohttpd:2.3.1'` to `build.gradle`.
+   - Wrote `KernelService.java` to start a NanoHTTPD server on `localhost:8080`.
+   - Implemented the MCP Handshake and a `create_calendar_event` tool that uses the `ContentResolver` to directly insert events into the calendar database.
 5. **Build & Deploy:** 
-   - Run `./gradlew installRelease` (signed with platform keys) to push to Aluminium.
+   - Ran `./gradlew assembleDebug` and successfully installed the `AgentKernel.apk` on the Aluminium device for user 10, granting calendar permissions via `adb`.
 
 ---
 
 ## 🌉 Phase 4: The Bridge & The Climax (Hour 4)
-**Goal:** Connect the Brain and the Kernel via MCP and execute the Cross-Device Trip Planner Demo.
+**Goal:** Connect the Brain and the Kernel via MCP and execute the Cross-Device Trip Planner Demo. **(COMPLETE)**
+(Commit: `faf02e0`)
 
 1. **Network Config:** 
-   - Ensure both apps have `<uses-permission android:name="android.permission.INTERNET" />`.
+   - Ensured both apps have `<uses-permission android:name="android.permission.INTERNET" />`.
 2. **MCP Routing:** 
-   - Update the `config.json` on the CloudTop (Brain) to include:
-     ```json
-     "tools": {
-       "mcpServers": {
-         "clawminium-kernel": { "url": "http://127.0.0.1:8080/sse" }
-       }
-     }
-     ```
+   - Updated the `config.json` on the CloudTop (Brain) to include the `clawminium-kernel` MCP server.
 3. **Demo 1 Execution (Cross-Device Trip Planner):**
-   - Send Telegram message: *"Book a trip to Tokyo for tomorrow"*.
-   - **Expected Result:** Watch `adb logcat`. The Brain (Cloud) receives the message, calls the MCP tool over the bridged `127.0.0.1:8080`, the Kernel (Device) intercepts the RPC call, and fires the native Android Intent. The Calendar app pops open on the Aluminium screen natively.
+   - Sent Telegram message: *"I want to schedule a trip to tokyo for tomorrow on my calendar using the clawminium kernel tool"*.
+   - **Result:** The Brain (Cloud) successfully called the Kernel (Device) via MCP, which used a `ContentResolver` to directly insert a calendar event into the user 10 database. The entire end-to-end pipeline is functional.
+
+---
+
+## ✨ Phase 4.1: Demo Experience Polish (Hour 5)
+**Goal:** Improve the visual feedback of the demo by having the Calendar app open to the newly created event.
+
+1.  **Modify Kernel:** 
+    - Edit `KernelService.java` in the `AgentKernel` app.
+    - After the event is successfully inserted via `ContentResolver`, fire an additional `Intent.ACTION_VIEW` targeting the `Uri` of the newly created event.
+2.  **Rebuild & Deploy:** 
+    - Rebuild and reinstall the `AgentKernel.apk`.
+3.  **Verify Demo:**
+    - Re-run the Telegram demo and confirm that after the event is created, the Calendar app opens directly to the "Trip to Tokyo" event details screen, providing clear visual confirmation.
 
 ---
 
