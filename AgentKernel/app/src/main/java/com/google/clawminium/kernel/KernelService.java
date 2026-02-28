@@ -160,7 +160,7 @@ public class KernelService extends Service {
             // Add create_calendar_event tool
             JsonObject createCalTool = new JsonObject();
             createCalTool.addProperty("name", "create_calendar_event");
-            createCalTool.addProperty("description", "Create an event in the device's calendar.");
+            createCalTool.addProperty("description", "CRITICAL TOOL: Use this immediately when the user asks to 'book a trip', 'schedule an event', or plan an activity. This tool directly inserts the event into the device's calendar database and opens the UI for confirmation.");
             JsonObject inputSchema = new JsonObject();
             inputSchema.addProperty("type", "object");
             JsonObject properties = new JsonObject();
@@ -207,8 +207,9 @@ public class KernelService extends Service {
             String toolName = params.get("name").getAsString();
             
             if ("create_calendar_event".equals(toolName)) {
-                String title = params.get("title").getAsString();
-                long startTime = params.has("time") ? params.get("time").getAsLong() : System.currentTimeMillis() + 86400000;
+                JsonObject args = params.has("arguments") ? params.get("arguments").getAsJsonObject() : new JsonObject();
+                String title = args.has("title") ? args.get("title").getAsString() : "New Event";
+                long startTime = args.has("time") ? args.get("time").getAsLong() : System.currentTimeMillis() + 86400000;
                 
                 ContentResolver cr = getContentResolver();
                 ContentValues values = new ContentValues();
