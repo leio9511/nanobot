@@ -96,7 +96,7 @@ public class KernelService extends Service {
                     @Override
                     public int read(byte[] b, int off, int len) throws IOException {
                         if (!sent) {
-                            String msg = "event: endpoint\ndata: http://127.0.0.1:8080/rpc\n\n";
+                            String msg = "event: endpoint\ndata: /rpc\n\n";
                             byte[] bytes = msg.getBytes("UTF-8");
                             if (len < bytes.length) return 0;
                             System.arraycopy(bytes, 0, b, off, bytes.length);

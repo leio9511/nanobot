@@ -19,4 +19,11 @@ __pycache__/
 poetry.lock
 .pytest_cache/
 botpy.log
+*.log
 tests/
+
+# Android & Gradle
+AgentKernel/.gradle/
+AgentKernel/build/
+AgentKernel/app/build/
+AgentKernel/local.properties
