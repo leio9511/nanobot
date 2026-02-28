@@ -81,6 +81,28 @@ We bypass the 10+ hour AOSP `frameworks/base` compile-and-flash cycle. Instead, 
 
 ---
 
+## 🔄 Phase 4.2: The "On-Device Hybrid" Migration (Hour 6)
+**Goal:** Migrate the "Brain" (`nanobot`) from the corporate CloudTop to the Aluminium device's local Linux VM. This isolates the Telegram network traffic from the corporate environment while gracefully bypassing the Android/Chaquopy Rust (`pydantic-core`) cross-compilation blocker (since the Linux VM is a standard Debian environment with pre-built wheels).
+
+1. **Sync Codebase:**
+   - `git push` the current `nanobot` workspace from CloudTop.
+   - Inside the Aluminium device's Linux VM terminal, `git pull` the repository.
+2. **Environment Setup (Linux VM):**
+   - Run `uv sync` to install dependencies. The Rust blocker disappears here because `uv` will download the standard Linux x86_64/ARM64 pre-built wheels for `pydantic-core`.
+3. **Network Bridge Reconfiguration:**
+   - *Drop ADB Reverse:* We no longer route over USB/ADB from CloudTop.
+   - *Android IP:* In the Aluminium/ChromeOS architecture, the Android container is typically reachable from the Linux VM at `100.115.92.2` (or the default gateway IP found via `ip route`).
+   - *Brain Config:* Update `~/.nanobot/config.json` inside the Linux VM. Change the MCP Server URL to point to the Android container: `"url": "http://100.115.92.2:8080/sse"`.
+   - *Kernel Fix:* Update `KernelService.java` on the Android side. The SSE handshake currently hardcodes the RPC callback to `http://127.0.0.1:8080/rpc`. This must be changed to dynamically use the request's Host header or a relative `/rpc` URI so the Linux VM routes the POST requests back to the Android container properly.
+4. **Verification (Demo 1 Re-run):**
+   - Rebuild and install the updated `AgentKernel` APK.
+   - Start the `AgentKernel` app on Android.
+   - Start the `nanobot` gateway in the Linux VM.
+   - Send the Telegram message: *"Book a trip to Tokyo for tomorrow."*
+   - **Expected Result:** The Brain in the Linux VM successfully connects to the AgentKernel in the Android container over the internal virtual network (`100.115.92.2`) and opens the Calendar app, proving the On-Device Hybrid architecture works.
+
+---
+
 ## 🔒 Phase 5: Internal PII Exfiltration Block (Day 2-3)
 **Goal:** Demonstrate the on-device kernel enforcing a data-sharing policy, even when the AI's request is seemingly benign.
 
