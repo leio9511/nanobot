@@ -96,12 +96,25 @@ We bypass the 10+ hour AOSP `frameworks/base` compile-and-flash cycle. Instead, 
    - *Brain Config:* Update `~/.nanobot/config.json` inside the Linux VM. Change the MCP Server URL to point to the Android container: `"url": "http://100.115.92.2:8080/sse"`.
    - *Kernel Fix:* Update `KernelService.java` on the Android side. The SSE handshake currently hardcodes the RPC callback to `http://127.0.0.1:8080/rpc`. This must be changed to dynamically use the request's Host header or a relative `/rpc` URI so the Linux VM routes the POST requests back to the Android container properly.
    - Rebuilt and installed the updated `AgentKernel` APK onto the device via `adb install`.
-4. **Verification (Demo 1 Re-run) (IN PROGRESS):**
+4. **Verification (Demo 1 Re-run) (COMPLETE):**
    - Started the `AgentKernel` app on Android.
    - Started the `nanobot` gateway in the Linux VM using `run_gateway.sh`.
    - Sent the Telegram message: *"Book a trip to Tokyo for tomorrow."*
-   - **Current Status:** The message was sent, but the Telegram bot (`@AlClawHackBot`) is not responding. 
-   - **Next Action:** Debug the Telegram connection in the Linux VM. Check if the gateway is successfully receiving webhook/polling updates from the Telegram API or if it's crashing silently upon receiving a message.
+   - **Result:** The gateway successfully received the Telegram message and responded. The connection issue (multiple instances using the same long-polling bot token) was resolved, and the MCP URL was updated to the wireless ADB IP.
+
+---
+
+## 📅 Phase 4.3: Calendar Tool Polish & Kernel Verification (Hour 7)
+**Goal:** Ensure the LLM naturally chooses the Calendar MCP tool for booking trips and verify that the `AgentKernel` successfully inserts the event into the Android calendar and opens the UI. **(IN PROGRESS)**
+
+1. **Tool Description Enhancement:**
+   - Update the `create_calendar_event` tool description in `KernelService.java` so the LLM understands it should be used for "booking trips," "scheduling," or "planning."
+2. **Kernel Operation Verification:**
+   - Call the MCP tool directly (via CLI/testing script) to isolate and verify the calendar insertion logic.
+   - Query the Android Calendar ContentProvider (`content://com.android.calendar/events`) via ADB to confirm the event exists in the database.
+   - Verify the `Intent` correctly opens the Calendar app.
+3. **E2E Telegram Test Re-run:**
+   - Once the kernel operation is verified, re-run the natural language test via Telegram: *"Book a trip to Tokyo for tomorrow"* to ensure seamless end-to-end execution.
 
 ---
 

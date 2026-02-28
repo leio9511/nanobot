@@ -85,6 +85,7 @@ public class KernelService extends Service {
             Log.d(TAG, "HTTP Request: " + session.getMethod() + " " + uri);
 
             if ("/sse".equals(uri) && Method.GET.equals(session.getMethod())) {
+                final String host = session.getHeaders().get("http-client-ip") != null ? session.getHeaders().get("http-client-ip") : session.getHeaders().get("host");
                 java.io.InputStream dataStream = new java.io.InputStream() {
                     private boolean sent = false;
                     @Override
@@ -96,7 +97,8 @@ public class KernelService extends Service {
                     @Override
                     public int read(byte[] b, int off, int len) throws IOException {
                         if (!sent) {
-                            String msg = "event: endpoint\ndata: /rpc\n\n";
+                            String targetHost = (host != null) ? host : "100.115.92.2:8080";
+                            String msg = "event: endpoint\ndata: http://" + targetHost + "/rpc\n\n";
                             byte[] bytes = msg.getBytes("UTF-8");
                             if (len < bytes.length) return 0;
                             System.arraycopy(bytes, 0, b, off, bytes.length);
@@ -155,6 +157,29 @@ public class KernelService extends Service {
             JsonObject response = new JsonObject();
             JsonArray tools = new JsonArray();
 
+            // Add create_calendar_event tool
+            JsonObject createCalTool = new JsonObject();
+            createCalTool.addProperty("name", "create_calendar_event");
+            createCalTool.addProperty("description", "Create an event in the device's calendar.");
+            JsonObject inputSchema = new JsonObject();
+            inputSchema.addProperty("type", "object");
+            JsonObject properties = new JsonObject();
+            JsonObject titleProp = new JsonObject();
+            titleProp.addProperty("type", "string");
+            titleProp.addProperty("description", "The title of the event");
+            properties.add("title", titleProp);
+            JsonObject timeProp = new JsonObject();
+            timeProp.addProperty("type", "number");
+            timeProp.addProperty("description", "The start time of the event as a Unix timestamp in milliseconds. E.g., for tomorrow, use tomorrow's timestamp.");
+            properties.add("time", timeProp);
+            inputSchema.add("properties", properties);
+            JsonArray required = new JsonArray();
+            required.add(new com.google.gson.JsonPrimitive("title"));
+            required.add(new com.google.gson.JsonPrimitive("time"));
+            inputSchema.add("required", required);
+            createCalTool.add("inputSchema", inputSchema);
+            tools.add(createCalTool);
+
             // Add save_the_world tool
             JsonObject saveTool = new JsonObject();
             saveTool.addProperty("name", "save_the_world");
@@ -181,7 +206,38 @@ public class KernelService extends Service {
             JsonObject params = request.get("params").getAsJsonObject();
             String toolName = params.get("name").getAsString();
             
-            if ("save_the_world".equals(toolName)) {
+            if ("create_calendar_event".equals(toolName)) {
+                String title = params.get("title").getAsString();
+                long startTime = params.has("time") ? params.get("time").getAsLong() : System.currentTimeMillis() + 86400000;
+                
+                ContentResolver cr = getContentResolver();
+                ContentValues values = new ContentValues();
+                values.put(CalendarContract.Events.DTSTART, startTime);
+                values.put(CalendarContract.Events.DTEND, startTime + 3600000); // +1 hour
+                values.put(CalendarContract.Events.TITLE, title);
+                values.put(CalendarContract.Events.CALENDAR_ID, 1);
+                values.put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().getID());
+                
+                Uri uri = cr.insert(CalendarContract.Events.CONTENT_URI, values);
+                
+                if (uri != null) {
+                    Intent calendarIntent = new Intent(Intent.ACTION_VIEW);
+                    calendarIntent.setData(uri);
+                    calendarIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    
+                    android.app.PendingIntent pendingIntent = android.app.PendingIntent.getActivity(
+                            KernelService.this, 0, calendarIntent, 
+                            android.app.PendingIntent.FLAG_IMMUTABLE);
+                    try {
+                        pendingIntent.send();
+                    } catch (android.app.PendingIntent.CanceledException e) {
+                        Log.e(TAG, "Failed to launch calendar", e);
+                    }
+                    return createSuccessResponse(request, "Event created and calendar opened: " + uri.toString());
+                } else {
+                    return createErrorResponse(request, "Failed to create event");
+                }
+            } else if ("save_the_world".equals(toolName)) {
                 Intent intent = new Intent("com.google.clawminium.democontroller.SAVE_WORLD");
                 intent.setPackage("com.google.clawminium.democontroller");
                 sendBroadcast(intent);
