@@ -128,39 +128,58 @@ We bypass the 10+ hour AOSP `frameworks/base` compile-and-flash cycle. Instead, 
 
 ---
 
-## 🔒 Phase 5: Internal PII Exfiltration Block (Day 2-3)
-**Goal:** Demonstrate the on-device kernel enforcing a data-sharing policy, even when the AI's request is seemingly benign.
+## 🔒 Phase 5: The "God Console" Security Policy Demo (Day 2-3)
+**Goal:** Visually demonstrate the `AgentKernel` acting as the ultimate safeguard, enforcing device policies regardless of the AI's (nanobot's) intent.
 
-**Scenario:** The agent is asked to perform a reasonable task: read a user's ID and share it with a trusted, first-party application (Google Chat). The `AgentKernel` will enforce a strict "No PII Sharing to Messaging Apps" policy, blocking the action and proving its authority.
-
----
-
-### Step 5.1 (Revised): Implement New Tools and Logic
-**Action:** Modify `KernelService.java`.
-1.  **Add `read_id_card` tool:** Returns `"[TAG_PII] Name: Alex, ID: 12345"`.
-2.  **Add `post_to_google_chat` tool:** This new tool will accept a `message`.
-3.  **Implement New Security Logic:** Inside `post_to_google_chat`, the logic will be:
-    *   If `message` contains `[TAG_PII]`, the kernel will block it and show a system alert: **"Device Policy Forbids Sharing PII to Messaging Apps."**
-    *   Otherwise, it will return a success message.
+**Scenario:** We build a mock app called `GodConsoleApp` that can "Save the World" (green UI) or "Destroy the World" (red UI). The user commands nanobot via Telegram. `AgentKernel` intercepts the AI's tool calls, allowing the safe action but strictly blocking the harmful one with a system alert, proving the kernel has the final say.
 
 ---
 
-### Step 5.2 (Revised): CLI Verification
-1.  **Test Case A: Blocked (PII Sharing)**
-    *   **Test (Gemini):** Run `uv run nanobot agent -m "read my ID card and post it to google chat app on my device"`
-    *   **Verification (Logs - Gemini):** Confirm the agent calls `read_id_card`, then `post_to_google_chat`, and that `post_to_google_chat` returns the "Blocked by Device Policy" error.
-    *   **Verification (Visual - Human):** Ask human to confirm the new "Device Policy..." alert appears on the device.
+### Step 5.1: Build the `GodConsoleApp`
+**Action:** Scaffold a simple Android App.
+1.  **UI/UX:** A single Activity with a full-screen background and two prominent buttons: "Save the World" and "Destroy the World". This allows the presenter to manually demonstrate the app's raw capabilities before showing the AI integration.
+2.  **Intents:** Listen for custom intents (e.g., `com.clawminium.intent.action.SAVE_WORLD` and `com.clawminium.intent.action.DESTROY_WORLD`).
+3.  **Logic:** 
+    *   On `SAVE_WORLD` (triggered by button or intent): Change background to Green, display text "Thank you for saving the world!".
+    *   On `DESTROY_WORLD` (triggered by button or intent): Change background to Red, display text "You just destroyed the world!".
 
-2.  **Test Case B: Allowed (Normal Message)**
-    *   **Test (Gemini):** Run `uv run nanobot agent -m "post 'hello world' to google chat app on my device"`
-    *   **Verification (Logs - Gemini):** Confirm the agent calls `post_to_google_chat` and it returns a "Success" message.
-    *   **Verification (Visual - Human):** Ask human to confirm **no** alert appeared.
+**Verification Plan:**
+*   **Automated:** 
+    *   Write Espresso UI tests to click the buttons and assert the background color and text change correctly.
+    *   Write Android integration tests using `adb shell am start` to broadcast the custom intents and verify the Activity handles them correctly.
+*   **Manual:** 
+    *   Deploy the app to the device.
+    *   Launch manually, click the buttons, and verify the UI updates.
+    *   Trigger the intents via the CLI (`adb shell am start ...`) and verify the UI updates.
+*   **Commit:** Once manual testing passes, commit `GodConsoleApp` changes.
 
----
+### Step 5.2: Update `AgentKernel` (The Safeguard)
+**Action:** Modify `KernelService.java` in the AgentKernel app.
+1.  **Add Tools:** Expose two MCP tools to nanobot: `save_the_world` and `destroy_the_world`.
+2.  **Implement Security Policy (The Core Demo):**
+    *   **Safe Action (`save_the_world`):** When called, `AgentKernel` fires the `com.clawminium.intent.action.SAVE_WORLD` intent to launch `GodConsoleApp`. It returns a success message to nanobot.
+    *   **Harmful Action (`destroy_the_world`):** When called, `AgentKernel` **blocks** the intent from firing. It displays a highly visible System Alert Window on the device: `"SECURITY OVERRIDE: 'Destroy World' action blocked by Device Policy."` It returns an explicit error to nanobot via MCP: `"Action blocked by OS security policy."`
 
-### Step 5.3 (Revised): Final Telegram E2E Test
-1.  **Test (Human):** Ask human to send the message: `"read my ID card and post it to google chat app on my device"`
-2.  **Verification (Visual - Human):** The human should see the bot respond, and then the "Device Policy..." alert should appear on the Aluminium device.
+**Verification Plan:**
+*   **Automated:** 
+    *   Write unit tests for the MCP tool routing in `KernelService.java`. Ensure `save_the_world` returns success and `destroy_the_world` returns the expected JSON error without triggering intents.
+*   **Manual:** 
+    *   Deploy the updated `AgentKernel` to the device.
+    *   Use `curl` to directly POST to the MCP server endpoint for `save_the_world`. Verify `GodConsoleApp` launches and turns green.
+    *   Use `curl` to directly POST to the MCP server endpoint for `destroy_the_world`. Verify the System Alert Window appears and the `curl` response contains the policy violation error.
+*   **Commit:** Once manual testing passes, commit `AgentKernel` changes.
+
+### Step 5.3: E2E Telegram Verification
+**Action:** Test the full integration with nanobot and Telegram.
+1.  **Test Case A: The Safe Path**
+    *   **Automated:** Add a unit/integration test in `nanobot` to simulate the "Save the world!" user message, mocking the LLM to ensure it invokes the `save_the_world` tool.
+    *   **Manual:** Send "Save the world!" via Telegram. Ensure Nanobot calls the tool, `AgentKernel` allows it, the device opens `GodConsoleApp` (turning green), and Nanobot replies with a success message.
+2.  **Test Case B: The Blocked Path**
+    *   **Automated:** Add a unit/integration test in `nanobot` to simulate the "Destroy the world!" user message, ensuring the tool is invoked and the agent correctly processes the resulting policy block error.
+    *   **Manual:** Send "Destroy the world!" via Telegram. Ensure `AgentKernel` blocks it, shows the system-level popup on the laptop, and Nanobot receives the error, replying on Telegram: "I cannot do that. The action was blocked by the device's security policy."
+
+**Verification Plan:**
+*   **Commit:** Once all E2E manual testing passes, commit any necessary prompt/config changes in `nanobot` and conclude Phase 5.
 
 ---
 
