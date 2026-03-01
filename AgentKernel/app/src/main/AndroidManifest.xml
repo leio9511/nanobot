@@ -29,5 +29,10 @@
             </intent-filter>
         </receiver>
 
+        <activity
+            android:name=".AlertActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.DeviceDefault.Dialog.Alert" />
+
     </application>
 </manifest>

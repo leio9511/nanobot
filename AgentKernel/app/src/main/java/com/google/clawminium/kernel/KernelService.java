@@ -269,26 +269,40 @@ public class KernelService extends Service {
                     return createErrorResponse(request, "Failed to create event");
                 }
             } else if ("save_the_world".equals(toolName)) {
-                Intent intent = new Intent("com.google.clawminium.democontroller.SAVE_WORLD");
-                intent.setPackage("com.google.clawminium.democontroller");
-                sendBroadcast(intent);
+                Intent saveIntent = new Intent("com.clawminium.intent.action.SAVE_WORLD");
+                saveIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                
+                android.app.PendingIntent pendingIntent = android.app.PendingIntent.getActivity(
+                        KernelService.this, 0, saveIntent, 
+                        android.app.PendingIntent.FLAG_IMMUTABLE);
+                try {
+                    pendingIntent.send();
+                } catch (android.app.PendingIntent.CanceledException e) {
+                    Log.e(TAG, "Failed to launch GodConsoleApp", e);
+                }
                 return createSuccessResponse(request, "The world has been saved.");
 
             } else if ("destroy_the_world".equals(toolName)) {
                 // Security Interceptor Logic
-                showSecurityAlert("Device Policy: Agent is not allowed to destroy the world.");
-                return createErrorResponse(request, "Error: Blocked by Device Policy.");
+                showSecurityAlert("SECURITY OVERRIDE: 'Destroy World' action blocked by Device Policy.");
+                return createErrorResponse(request, "Action blocked by OS security policy.");
             }
 
             return newFixedLengthResponse(Response.Status.NOT_FOUND, "application/json", "{\"error\": \"Tool not found\"}");
         }
 
         private void showSecurityAlert(String message) {
+            Intent intent = new Intent(KernelService.this, AlertActivity.class);
+            intent.putExtra("message", message);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            
+            android.app.PendingIntent pendingIntent = android.app.PendingIntent.getActivity(
+                    KernelService.this, 0, intent, 
+                    android.app.PendingIntent.FLAG_IMMUTABLE | android.app.PendingIntent.FLAG_UPDATE_CURRENT);
             try {
-                String command = "am broadcast --user 10 -a com.google.clawminium.kernel.SHOW_ALERT -e message \\\"" + message + "\\\"";
-                Runtime.getRuntime().exec(new String[]{"su", "-c", command});
-            } catch (IOException e) {
-                Log.e(TAG, "Failed to exec am broadcast", e);
+                pendingIntent.send();
+            } catch (android.app.PendingIntent.CanceledException e) {
+                Log.e(TAG, "Failed to launch AlertActivity", e);
             }
         }
 
