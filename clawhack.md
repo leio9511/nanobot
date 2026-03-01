@@ -105,7 +105,8 @@ We bypass the 10+ hour AOSP `frameworks/base` compile-and-flash cycle. Instead, 
 ---
 
 ## 📅 Phase 4.3: Calendar Tool Polish & Kernel Verification (Hour 7)
-**Goal:** Ensure the LLM naturally chooses the Calendar MCP tool for booking trips and verify that the `AgentKernel` successfully inserts the event into the Android calendar and opens the UI. **(IN PROGRESS)**
+**Goal:** Ensure the LLM naturally chooses the Calendar MCP tool for booking trips and verify that the `AgentKernel` successfully inserts the event into the Android calendar and opens the UI. **(COMPLETE)**
+(Commit: `b0e5219`)
 
 1. **Tool Description Enhancement (COMPLETE):**
    - Updated the `create_calendar_event` tool description in `KernelService.java` so the LLM explicitly knows it is the *critical tool* used for "booking trips," "scheduling," or "planning."
@@ -115,8 +116,15 @@ We bypass the 10+ hour AOSP `frameworks/base` compile-and-flash cycle. Instead, 
    - Granted `android.permission.READ_CALENDAR` and `android.permission.WRITE_CALENDAR` to the `AgentKernel` service (user 10) via ADB.
    - Called the MCP tool directly via `curl` to `http://192.168.72.155:8080/rpc`.
    - Queried the Android Calendar ContentProvider (`content://com.android.calendar/events`) via ADB and confirmed the test event ("Direct Test Trip") successfully exists in the database.
-3. **E2E Telegram Test Re-run (IN PROGRESS):**
-   - Re-run the natural language test via Telegram: *"Book a trip to Tokyo for tomorrow"* to ensure seamless end-to-end execution.
+3. **E2E Telegram Test Re-run (COMPLETE):**
+   - Re-ran the natural language test via Telegram: *"Book a trip to Tokyo for tomorrow"*.
+   - **Result:** The `nanobot` gateway correctly identified the intent, invoked the `create_calendar_event` MCP tool, and the `AgentKernel` successfully inserted the event into the primary calendar (`id=4`). The Calendar app opened on the device and displayed the new event, confirming the end-to-end flow is fully functional.
+
+**Learnings & Key Takeaways:**
+- **Telegram Polling:** The Telegram Bot API only allows one active long-polling connection per token. Multiple `nanobot` instances running with the same token will conflict, causing timeouts and dropped messages.
+- **MCP Protocol:** Tool arguments are nested under `params.arguments`, not directly in `params`. This is a critical detail for service-side implementation.
+- **LLM Prompting:** For high-stakes "hackathon demos," it is sometimes necessary to add very direct, forceful instructions to the system prompt (e.g., "IMMEDIATELY call this tool...") to override the LLM's default conversational behavior.
+- **Android ContentProviders:** Never hardcode IDs for providers like Calendars. `CALENDAR_ID=1` is often a default, read-only system calendar (like Holidays), and attempting to write to it can cause UI crashes. Always query for a primary, visible, and writable calendar.
 
 ---
 
