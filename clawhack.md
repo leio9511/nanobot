@@ -90,10 +90,21 @@ We bypass the 10+ hour AOSP `frameworks/base` compile-and-flash cycle. Instead, 
 2. **Environment Setup (Linux VM) (COMPLETE):**
    - Run `uv sync` to install dependencies. The Rust blocker disappears here because `uv` will download the standard Linux x86_64/ARM64 pre-built wheels for `pydantic-core`.
    - Installed JDK, took ownership of `/usr/lib/android-sdk`, and downloaded missing build-tools/platforms for Android 34.
-3. **Network Bridge Reconfiguration (COMPLETE):**
+3. **Network Bridge & MCP Configuration (COMPLETE):**
    - *Drop ADB Reverse:* We no longer route over USB/ADB from CloudTop.
-   - *Android IP:* In the Aluminium/ChromeOS architecture, the Android container is typically reachable from the Linux VM at `100.115.92.2` (or the default gateway IP found via `ip route`).
-   - *Brain Config:* Update `~/.nanobot/config.json` inside the Linux VM. Change the MCP Server URL to point to the Android container: `"url": "http://100.115.92.2:8080/sse"`.
+   - *Android IP Discovery:* In the Aluminium/ChromeOS architecture, the Android container is reachable from the Linux VM at the gateway IP: **`100.115.92.2`**.
+   - *Claw/Nanobot Config:* To connect any MCP-compatible agent to the Kernel, update the `config.json` (usually at `~/.nanobot/config.json`) with the following block:
+     ```json
+     {
+       "tools": {
+         "mcp_servers": {
+           "clawminium-kernel": {
+             "url": "http://100.115.92.2:8080/sse"
+           }
+         }
+       }
+     }
+     ```
    - *Kernel Fix:* Update `KernelService.java` on the Android side. The SSE handshake currently hardcodes the RPC callback to `http://127.0.0.1:8080/rpc`. This must be changed to dynamically use the request's Host header or a relative `/rpc` URI so the Linux VM routes the POST requests back to the Android container properly.
    - Rebuilt and installed the updated `AgentKernel` APK onto the device via `adb install`.
 4. **Verification (Demo 1 Re-run) (COMPLETE):**
