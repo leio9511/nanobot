@@ -110,6 +110,7 @@ We bypass the 10+ hour AOSP `frameworks/base` compile-and-flash cycle. Instead, 
 1. **Tool Description Enhancement (COMPLETE):**
    - Updated the `create_calendar_event` tool description in `KernelService.java` so the LLM explicitly knows it is the *critical tool* used for "booking trips," "scheduling," or "planning."
    - Fixed a bug where the Java service was trying to read tool arguments directly from `params` instead of the `params.arguments` object as required by the MCP protocol.
+   - **Critical Fix:** Modified the `create_calendar_event` tool to dynamically query the `content://com.android.calendar/calendars` provider for a primary, editable calendar (`IS_PRIMARY = 1` or `CALENDAR_ACCESS_LEVEL >= 500`). Previously, the code hardcoded `CALENDAR_ID = 1`, which was pointing to a read-only holiday calendar. Inserting into a read-only calendar caused the Android Calendar UI to crash immediately and hid the event.
 2. **Kernel Operation Verification (COMPLETE):**
    - Granted `android.permission.READ_CALENDAR` and `android.permission.WRITE_CALENDAR` to the `AgentKernel` service (user 10) via ADB.
    - Called the MCP tool directly via `curl` to `http://192.168.72.155:8080/rpc`.

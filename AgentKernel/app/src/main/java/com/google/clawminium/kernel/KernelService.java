@@ -170,12 +170,11 @@ public class KernelService extends Service {
             properties.add("title", titleProp);
             JsonObject timeProp = new JsonObject();
             timeProp.addProperty("type", "number");
-            timeProp.addProperty("description", "The start time of the event as a Unix timestamp in milliseconds. E.g., for tomorrow, use tomorrow's timestamp.");
+            timeProp.addProperty("description", "Optional. The start time of the event as a Unix timestamp in milliseconds. If omitted, the device will automatically schedule it for tomorrow.");
             properties.add("time", timeProp);
             inputSchema.add("properties", properties);
             JsonArray required = new JsonArray();
             required.add(new com.google.gson.JsonPrimitive("title"));
-            required.add(new com.google.gson.JsonPrimitive("time"));
             inputSchema.add("required", required);
             createCalTool.add("inputSchema", inputSchema);
             tools.add(createCalTool);
@@ -212,11 +211,42 @@ public class KernelService extends Service {
                 long startTime = args.has("time") ? args.get("time").getAsLong() : System.currentTimeMillis() + 86400000;
                 
                 ContentResolver cr = getContentResolver();
+                
+                // Dynamically find a primary, editable calendar
+                long calId = 1;
+                Cursor cursor = cr.query(
+                        CalendarContract.Calendars.CONTENT_URI,
+                        new String[]{CalendarContract.Calendars._ID},
+                        CalendarContract.Calendars.VISIBLE + " = 1 AND " + CalendarContract.Calendars.IS_PRIMARY + " = 1",
+                        null, null);
+                
+                if (cursor != null) {
+                    if (cursor.moveToFirst()) {
+                        calId = cursor.getLong(0);
+                    }
+                    cursor.close();
+                }
+                
+                // Fallback to finding any writable calendar if IS_PRIMARY isn't reliable
+                if (calId == 1) {
+                     Cursor fallbackCursor = cr.query(
+                            CalendarContract.Calendars.CONTENT_URI,
+                            new String[]{CalendarContract.Calendars._ID},
+                            CalendarContract.Calendars.VISIBLE + " = 1 AND " + CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL + " >= 500",
+                            null, null);
+                     if (fallbackCursor != null) {
+                         if (fallbackCursor.moveToFirst()) {
+                             calId = fallbackCursor.getLong(0);
+                         }
+                         fallbackCursor.close();
+                     }
+                }
+
                 ContentValues values = new ContentValues();
                 values.put(CalendarContract.Events.DTSTART, startTime);
                 values.put(CalendarContract.Events.DTEND, startTime + 3600000); // +1 hour
                 values.put(CalendarContract.Events.TITLE, title);
-                values.put(CalendarContract.Events.CALENDAR_ID, 1);
+                values.put(CalendarContract.Events.CALENDAR_ID, calId);
                 values.put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().getID());
                 
                 Uri uri = cr.insert(CalendarContract.Events.CONTENT_URI, values);
