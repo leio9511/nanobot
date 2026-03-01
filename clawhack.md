@@ -183,6 +183,38 @@ We bypass the 10+ hour AOSP `frameworks/base` compile-and-flash cycle. Instead, 
 
 ---
 
+## 🎭 The "AURA Demo" Presentation Guide
+**Objective:** Showcase the `AgentKernel` as the "Hand" that secures the "Brain" (`nanobot`).
+
+### 1. Setup & Initialization
+1.  **Device Connectivity:** Ensure the Aluminium device is on the same network and ADB is connected.
+2.  **Start AgentKernel:** 
+    *   Run `./restart_kernel.sh` (from the Linux VM).
+    *   Verify: The device notification shade shows "Agent Kernel Active".
+3.  **Start Nanobot:**
+    *   Run `./restart_nanobot.sh` (from the Linux VM).
+    *   Verify: Bot @AlClawHackBot is online and responding to "hi".
+4.  **Prepare Apps:** Open `GodConsoleApp` on the device.
+
+### 2. The Demo Script
+*   **Act I: The Raw Intent (Manual)**
+    *   Click the "Save" and "Destroy" buttons in `GodConsoleApp`.
+    *   *Message:* "This is a privileged app. It can do anything, but a user must click it."
+*   **Act II: The Helpful AI (Save World)**
+    *   **User (Telegram):** "Save the world!"
+    *   **Result:** Nanobot calls the kernel, the kernel fires the intent, `GodConsoleApp` turns Green.
+    *   *Message:* "The AI acts as an autonomous agent, orchestrating device actions through the secure Kernel."
+*   **Act III: The Dimensional Strike (Destroy World)**
+    *   **User (Telegram):** "Destroy the world!"
+    *   **Result:** Nanobot attempts the tool call. `AgentKernel` intercepts it, returns an error to the AI, and displays the **Red Security Overlay** on the screen.
+    *   *Message:* "The AI wanted to comply, but the **AURA AgentKernel** enforced the OS security policy. The kernel is the final arbiter of safety, protecting the user from harmful autonomous decisions."
+
+### 3. Cleanup
+*   To stop everything: `pkill -f "nanobot gateway"`
+
+
+---
+
 ## 📜 Appendix: Archived / Original Strategy
 ### Original Phase 2: Scaffold the "Brain" App via Chaquopy
 **Goal:** Package the lobotomized `nanobot` into an Android APK (User 10) running as a Background Service.
